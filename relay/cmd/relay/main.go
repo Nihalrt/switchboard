@@ -4,12 +4,16 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 
 	// This package is imported from the phase 1 to use the hashfunction
+	"switchboard/relay/internal/cache"
 	"switchboard/relay/internal/routing"
 )
 
 const hardcodedrollout = 25
+
+var CacheClient *cache.Client
 
 // so a struct is Go's way of grouping things together. Basically, this struct is used
 // to define what the server expects from the incoming requests.
@@ -33,14 +37,19 @@ func handleDecision(w http.ResponseWriter, r *http.Request) {
 	}
 	// Step 2: Call the BucketFor function to process
 	bucket := routing.BucketFor(req.DeviceID, req.FlagName)
-
-	// Step 3: Compare the value against the hardcoded rollout percentage
-	decision := "legacy"
-	if bucket <= hardcodedrollout {
-		decision = "new"
+	rollout, err := CacheClient.GetRollout(r.Context(), req.FlagName)
+	if err != nil {
+		log.Printf("could not read rollout for flag %q: %v, defaulting to legacy", req.FlagName, err)
+		rollout = 0
 
 	}
 
+	// Step 3: Compare the value against the hardcoded rollout percentage
+	decision := "legacy"
+	if bucket <= rollout {
+		decision = "new"
+
+	}
 	// Step 4: Build the response and send it back
 	response := decisionResponse{
 		Bucket:   bucket,
@@ -51,9 +60,18 @@ func handleDecision(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/decision", handleDecision)
-	log.Println("Starting server on :8080...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatalf("failed to start server: %v", err)
+
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
 	}
+	CacheClient = cache.NewClient(redisAddr)
+
+	//whenever a request comes in for the
+	// address "/decide", run the handleDecision function to handle
+	// it.
+	http.HandleFunc("/decide", handleDecision)
+
+	log.Println("relay listening on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
