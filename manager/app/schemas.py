@@ -1,6 +1,6 @@
 # This file basically defines the shape of the data during a req and res.
 # Previously, we worked on what the request type should be and what it should contain and what should the response contain
-# This file is quite different from models.py, which contains the definition for the tables, inheriting the base class.abs
+# This file is quite different from models.py, which contains the definition for the tables, inheriting the base class
 
 from pydantic import BaseModel, Field
 
