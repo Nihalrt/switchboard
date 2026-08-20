@@ -16,7 +16,7 @@ engine = create_engine(login_db())
 # everytime you converse with db, or send queries and then is closed after done.
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Starting point of every table defined in the database
-base = declarative_base()
+Base = declarative_base()
 
 def get_db():
     """

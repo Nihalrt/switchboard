@@ -17,7 +17,7 @@ a path return /{name} would become /flags/{name} once connected to the app from 
 
 router = APIRouter(prefix="/flags", tags=["flags"])
 
-@router.post("/", response_model=FlagReponse, status_code=201)
+@router.post("/", response_model=FlagResponse, status_code=201)
 def create_flag(flag: FlagCreate, db: Session = Depends(get_db)):
     """
     Insert a flag into the db after a check
@@ -31,15 +31,33 @@ def create_flag(flag: FlagCreate, db: Session = Depends(get_db)):
     new_flag = Flag(name=flag.name, rollout_percentage=flag.rollout_percentage)
     db.add(new_flag)
     db.commit()
-    df.refresh(new_flag)
+    db.refresh(new_flag)
 
     # Add the new flag to Redis for go relay process
     cache.set_rollout(new_flag.name, new_flag.rollout_percentage)
     return new_flag
 
 @router.put("/{name}", response_model=FlagResponse)
-def update_flag(new_name: str, update: FlagUpdate, db: Session = Depends(get_db()):
+def update_flag(name: str, update: FlagUpdate, db: Session = Depends(get_db)):
     """
     Update the flag 
-
     """
+    existing_flag = db.query(Flag).filter(Flag.name==name).first()
+    if existing_flag is None:
+        raise HTTPException(
+            status_code=409, detail=f"flag does not exist, Create the flag"
+        )
+    existing_flag.rollout_percentage = update.rollout_percentage
+    db.commit()
+    db.refresh(existing_flag)
+    cache.set_rollout(existing_flag.name, existing_flag.rollout_percentage)
+
+    return existing_flag
+
+@router.get("/{name}", response_model=FlagResponse)
+def get_flag(name: str, db: Session = Depends(get_db)):
+    flag = db.query(Flag).filter(Flag.name == name).first()
+    if flag is None:
+        raise HTTPException(status_code=409, detail=f"flag does not exist in the db, create the flag")
+    
+    return flag
