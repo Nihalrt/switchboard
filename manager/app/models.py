@@ -11,3 +11,12 @@ class Flag(Base):
     rollout_percentage = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class RoutingEvents(base):
+    __tablename__ = "Routing_events"
+    id = Column(Integer, primary_key=True, index=True)
+    device_id = Column(String, index=True, nullable=False)
+    flag_name = Column(String, index=True, nullable=False)
+    bucket = Column(String, nullable=False)
+    decision = Column(String, nullable=False)
+    outcome = Column(String, nullable=True)
