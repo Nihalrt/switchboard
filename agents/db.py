@@ -9,9 +9,10 @@ DATABASE = os.getenv(
 )
 
 engine = create_engine(DATABASE)
-Sessionlocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+sessionlocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 base = declarative_base()
 
+@contextmanager
 def get_session():
     db_session = sessionlocal()
     try:
