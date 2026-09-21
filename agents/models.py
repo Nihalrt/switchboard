@@ -24,3 +24,16 @@ class Escalation(Base):
     reason = Column(String, nullable=False)
     resolved = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True))
+
+class InteractionFinding(Base):
+    __tablename__ = "interaction_findings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    flag_a = Column(String, nullable=False)
+    flag_b = Column(String, nullable=False)
+    overlap_sample_size = Column(Integer, nullable=False)
+    overlap_failure_rate = Column(Float, nullable=False)
+    baseline_failure_rate = Column(Float, nullable=False)
+    p_value = Column(Float, nullable=False)
+    likely_cause = Column(String, nullable=False) # Gemini output
+    reason = Column(String, nullable=False) # Gemini's reason
