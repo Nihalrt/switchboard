@@ -68,6 +68,3 @@ def check_response(gemini_response: str, flag_a: str, flag_b: str):
         return "BOTH", reason
     else:
         return "NO EXPLANATION" or "NOT FOUND"
-
-    
-
