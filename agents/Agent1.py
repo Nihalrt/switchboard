@@ -132,6 +132,7 @@ def evaluate_flag(flag_name: str) -> None:
         gemini_response = ask_gemini(prompt)
     except Exception as e:
         _record_escalation(flag_name, f"{e}")
+        return
     
     decision, reason = _parse_decision(gemini_response)
 

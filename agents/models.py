@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.sql import func
 
 Base = declarative_base()
 
@@ -37,3 +38,4 @@ class InteractionFinding(Base):
     p_value = Column(Float, nullable=False)
     likely_cause = Column(String, nullable=False) # Gemini output
     reason = Column(String, nullable=False) # Gemini's reason
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
