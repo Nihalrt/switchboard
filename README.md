@@ -204,3 +204,40 @@ rolling back one flag without causal evidence.
 - Add Manager endpoints and a dashboard for escalations and findings.
 - Add idempotency, authentication, observability, and production deployment
   configuration.
+
+## Request and rollback safeguards
+
+The relay accepts only `POST /decide` with one JSON object containing nonblank
+`device_id` and `flag_name`. Invalid or oversized input returns an error before
+Redis is consulted. Missing/unavailable Redis values and percentages outside
+0–100 fall back to the legacy path. Buckets remain 1–100, so 0% disables a flag
+and 100% enables it for every device without changing existing assignments.
+
+Agent 1 counts only completed success/failure outcomes, skips comparisons with
+no outcome variation, and rejects a Gemini rollback recommendation when the new
+pipeline's measured failure rate is no worse than legacy. Gemini output remains
+advisory within these deterministic constraints; observational comparisons do
+not prove which flag caused a failure.
+
+Run all automated agent regressions with:
+
+```bash
+cd agents
+GEMINI_API_KEY=test-key DATABASE_URL=sqlite:///:memory: \
+.venv/bin/python -m unittest discover -p 'test_agent_*.py' -v
+```
+
+Relay handler tests use a fake rollout store; live Redis/PostgreSQL behavior and
+real Gemini availability require separate integration checks. The Manager and
+relay currently have no authentication or rate limiting; expose them only in a
+trusted development environment. `.env.example` contains placeholders; keep
+real credentials outside Git.
+
+Further analysis limits: Agent 1 counts historical events rather than distinct
+independent devices, while Agent 2 combines two overlap outcomes with an
+any-failure rule and compares that with a single observed outcome per comparison
+device. That can inflate overlap failure rates even without an interaction.
+There is no fixed observation window or multiple-comparison correction. Treat
+pair findings as exploratory and validate with a controlled experiment before
+operational use. Manager database writes and Redis updates are not atomic; a
+cache write failure may leave a stale rollout until the update is retried.
