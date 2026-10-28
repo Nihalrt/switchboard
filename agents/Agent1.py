@@ -47,11 +47,13 @@ def evaluate_flag(flag_name: str) -> None:
     with get_session() as session:
         new_events = (
             session.query(RoutingEvents).filter(RoutingEvents.flag_name == flag_name,
-            RoutingEvents.decision == "new").all()
+            RoutingEvents.decision == "new",
+            RoutingEvents.outcome.in_(["success", "failure"])).all()
         )
         legacy_events = (
             session.query(RoutingEvents).filter(RoutingEvents.flag_name == flag_name,
-            RoutingEvents.decision == "legacy").all()
+            RoutingEvents.decision == "legacy",
+            RoutingEvents.outcome.in_(["success", "failure"])).all()
         )
     
     if len(new_events) < MIN_SAMPLE_SIZE or len(legacy_events) < MIN_SAMPLE_SIZE:
@@ -67,7 +69,11 @@ def evaluate_flag(flag_name: str) -> None:
         [new_events_failures, new_events_success],
         [legacy_events_failures, legacy_events_success]
     ]
-    _, p_value, _,_ = chi2_contingency(contingency_table)
+    try:
+        _, p_value, _, _ = chi2_contingency(contingency_table)
+    except ValueError:
+        # All-success or all-failure cohorts have no variation to compare.
+        return
 
     if p_value >= SIGNIFICANCE_THRESHOLD:
         print(f"{flag_name} healthy, no meaningful data")
@@ -135,6 +141,10 @@ def evaluate_flag(flag_name: str) -> None:
         return
     
     decision, reason = _parse_decision(gemini_response)
+
+    if decision == "ROLLBACK" and new_failure_rate <= legacy_failure_rate:
+        _record_escalation(flag_name, "Rollback rejected: new failure rate is not worse than legacy")
+        return
 
     if decision == "ROLLBACK":
         try:

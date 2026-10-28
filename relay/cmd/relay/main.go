@@ -1,19 +1,24 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	// This package is imported from the phase 1 to use the hashfunction
 	"switchboard/relay/internal/cache"
 	"switchboard/relay/internal/routing"
 )
 
-const hardcodedrollout = 25
+type rolloutStore interface {
+	GetRollout(context.Context, string) (int, error)
+}
 
-var CacheClient *cache.Client
+var CacheClient rolloutStore
 
 // so a struct is Go's way of grouping things together. Basically, this struct is used
 // to define what the server expects from the incoming requests.
@@ -30,15 +35,30 @@ type decisionResponse struct {
 
 // Handle the decision (feature bucket or legacy)
 func handleDecision(w http.ResponseWriter, r *http.Request) {
-	// Step 1: Check if the request is in the expected format, err would be non-nil if malformed
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	decoder := json.NewDecoder(r.Body)
 	var req decisionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decoder.Decode(&req); err != nil {
 		http.Error(w, "invalid body request", http.StatusBadRequest)
+		return
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		http.Error(w, "expected a single JSON object", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.DeviceID) == "" || strings.TrimSpace(req.FlagName) == "" {
+		http.Error(w, "device_id and flag_name are required", http.StatusBadRequest)
+		return
 	}
 	// Step 2: Call the BucketFor function to process
 	bucket := routing.BucketFor(req.DeviceID, req.FlagName)
 	rollout, err := CacheClient.GetRollout(r.Context(), req.FlagName)
-	if err != nil {
+	if err != nil || rollout < 0 || rollout > 100 {
 		log.Printf("could not read rollout for flag %q: %v, defaulting to legacy", req.FlagName, err)
 		rollout = 0
 
