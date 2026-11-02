@@ -1,5 +1,14 @@
 # Switchboard
 
+[![Regression tests](https://github.com/Nihalrt/switchboard/actions/workflows/tests.yml/badge.svg)](https://github.com/Nihalrt/switchboard/actions/workflows/tests.yml)
+
+**Go routing + Python analysis for controlled feature rollouts.**  
+[Engineering walkthrough](docs/ENGINEERING.md) · [Run locally](#local-setup) · [Run tests](#tests)
+
+**Start here:** Follow a device request through the relay, then inspect the agent
+workflow with synthetic outcomes. The implemented safeguards and statistical
+limits are documented below.
+
 Switchboard is a feature-flag monitoring prototype that routes devices between
 legacy and new code paths, measures failures, and investigates both individual
 flag regressions and cross-flag interactions.
